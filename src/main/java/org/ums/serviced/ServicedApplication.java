@@ -23,17 +23,17 @@ public class ServicedApplication {
 		SpringApplication.run(ServicedApplication.class, args);
 	}
 
-	@KafkaListener(topics="my_topic", id="serviceD")
+  @KafkaListener(topics = "my_topic")
     public void listen(ConsumerRecord<?,?> cr) throws Exception{
 	    if(cr.key().toString().equals("serviceD")){
             logger.info(cr.key().toString());
             logger.info(cr.value().toString());
-            ServiceStatus receivedServiceStatus = (ServiceStatus) cr.value();
-            ServiceStatus serviceStatus = new ServiceStatus();
-            serviceStatus.setParentServiceId(receivedServiceStatus.getServiceId());
-            serviceStatus.setServiceId("serviceD");
-            serviceStatus.setStatus(true);
-            ObjectMapper mapper = new ObjectMapper();
+        ObjectMapper mapper = new ObjectMapper();
+        ServiceStatus receivedServiceStatus = mapper.readValue(cr.value().toString(), ServiceStatus.class);
+        ServiceStatus serviceStatus = new ServiceStatus();
+        serviceStatus.setParentServiceId(receivedServiceStatus.getServiceId());
+        serviceStatus.setServiceId("serviceD");
+        serviceStatus.setStatus(true);
             String jsonServiceStatus = mapper.writeValueAsString(serviceStatus);
             template.send("tracker", "serviceD", jsonServiceStatus);
         }
