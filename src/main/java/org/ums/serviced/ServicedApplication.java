@@ -7,20 +7,30 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.client.circuitbreaker.EnableCircuitBreaker;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.List;
+
 @SpringBootApplication
 @RestController("/")
+@EnableCircuitBreaker
 public class ServicedApplication {
 
     public static Logger logger = LoggerFactory.getLogger(ServicedApplication.class);
 
     @Autowired
     private KafkaTemplate<String, String> template;
+  @Autowired
+  CheckinsRepository mCheckinsRepository;
+  @Autowired
+  NativePartitionService mNativePartitionService;
+  @Autowired
+  PartitionRepository mPartitionRepository;
 
 
 	public static void main(String[] args) {
@@ -29,10 +39,21 @@ public class ServicedApplication {
 
   @GetMapping("/service-d")
   public boolean getReponse()throws Exception{
+    Iterable<Checkins> checkins = mCheckinsRepository.findAll();
+    List<Checkins> checkinsList = CrowdSourceUtils.convertFromIterableToList(checkins);
+    checkinsList.sort((o1,o2)->o1.getDate().compareTo(o2.getDate()));
+    //Map<Date, List<Checkins>> listMap = mNativePartitionService.getGroupBy(checkinsList);
+
+    mNativePartitionService.assignPartitions(checkinsList, 500);
     RestTemplate restTemplate = new RestTemplate();
-    Thread.sleep(500);
     return true;
   }
+
+
+  public boolean reliable(){
+    return false;
+  }
+
 
   @KafkaListener(topics = "service-d")
   public void listen(ConsumerRecord<?,?> cr) throws Exception{
